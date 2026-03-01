@@ -3,9 +3,9 @@ import logging
 import sys
 from pathlib import Path
 
-from languages import get_language, list_languages, LanguageConfig
-from tree_builder import get_tree_string, collect_files
-from pdf_generator import generate_pdf
+from .languages import get_language, list_languages, LanguageConfig
+from .tree import get_tree_string, collect_files
+from .generator import generate_pdf
 
 logger = logging.getLogger(__name__)
 

@@ -1,8 +1,8 @@
 import logging
 from fpdf import FPDF
 
-from font_setup import get_font_path, download_fonts
-from languages import LanguageConfig
+from .fonts import get_font_path, download_fonts
+from .languages import LanguageConfig
 
 logger = logging.getLogger(__name__)
 

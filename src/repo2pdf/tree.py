@@ -2,7 +2,7 @@ import json
 import logging
 from pathlib import Path
 
-from languages import LanguageConfig, BASE_IGNORED_DIRS
+from .languages import LanguageConfig, BASE_IGNORED_DIRS
 
 logger = logging.getLogger(__name__)
 
