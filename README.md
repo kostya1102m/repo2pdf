@@ -74,4 +74,7 @@ generate_pdf(
 
 ### Requirements:
 Python 3.10+
-fpdf2, requests
+
+fpdf2
+
+requests
