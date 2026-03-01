@@ -1,18 +1,27 @@
 [project]
 name = "repo2pdf"
 version = "0.1.0"
-description = ""
+description = "Library to convert git repositories to PDF documentation"
 authors = [
-    {name = "mercury",email = "122353133+kostya1102m@users.noreply.github.com"}
+    {name = "mercury", email = "122353133+kostya1102m@users.noreply.github.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.10"
+
 dependencies = [
     "fpdf2 (>=2.8.7,<3.0.0)",
     "requests (>=2.32.5,<3.0.0)"
 ]
 
 
+[project.scripts]
+repo2pdf = "repo2pdf.cli:main"
+
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+packages = [
+    { include = "repo2pdf", from = "src" }
+]
