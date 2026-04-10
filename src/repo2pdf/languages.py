@@ -15,13 +15,28 @@ class LanguageConfig:
 
 
 BASE_IGNORED_DIRS = {
-    '.venv', 'venv', 'env', '.env',
-    '__pycache__', '.git', '.hg', '.svn',
-    '.idea', '.vscode',
-    '.mypy_cache', '.pytest_cache', '.ruff_cache',
-    'dist', 'build',
-    '.tox', '.nox',
-    '.eggs',
+    ".venv",
+    "venv",
+    "env",
+    ".env",
+    "__pycache__",
+    ".git",
+    ".hg",
+    ".svn",
+    ".idea",
+    ".vscode",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    "dist",
+    "build",
+    ".tox",
+    ".nox",
+    ".eggs",
+    "node_modules",
+    ".mvn",
+    ".gradle",
+    "target",
 }
 
 PYTHON = LanguageConfig(
@@ -36,7 +51,13 @@ JAVASCRIPT = LanguageConfig(
     name="javascript",
     display_name="JavaScript",
     extensions=[".js", ".jsx", ".mjs"],
-    extra_ignore_dirs=["node_modules", "bower_components", ".next", ".nuxt", "coverage"],
+    extra_ignore_dirs=[
+        "node_modules",
+        "bower_components",
+        ".next",
+        ".nuxt",
+        "coverage",
+    ],
     description="JavaScript source files (.js, .jsx, .mjs)",
 )
 
@@ -44,7 +65,13 @@ TYPESCRIPT = LanguageConfig(
     name="typescript",
     display_name="TypeScript",
     extensions=[".ts", ".tsx"],
-    extra_ignore_dirs=["node_modules", "bower_components", ".next", ".nuxt", "coverage"],
+    extra_ignore_dirs=[
+        "node_modules",
+        "bower_components",
+        ".next",
+        ".nuxt",
+        "coverage",
+    ],
     description="TypeScript source files (.ts, .tsx)",
 )
 
@@ -60,16 +87,75 @@ JS_TS = LanguageConfig(
     name="js_ts",
     display_name="JavaScript + TypeScript",
     extensions=[".js", ".jsx", ".mjs", ".ts", ".tsx"],
-    extra_ignore_dirs=["node_modules", "bower_components", ".next", ".nuxt", "coverage"],
+    extra_ignore_dirs=[
+        "node_modules",
+        "bower_components",
+        ".next",
+        ".nuxt",
+        "coverage",
+    ],
     description="JS & TS source files",
 )
 
+JAVA = LanguageConfig(
+    name="java",
+    display_name="Java",
+    extensions=[".java"],
+    extra_ignore_dirs=[
+        "target",
+        "bin",
+        "out",
+        ".gradle",
+        "gradle",
+        ".settings",
+        ".classpath",
+        ".project",
+        ".mvn",
+    ],
+    description="Java source files (.java)",
+)
+
+XML = LanguageConfig(
+    name="xml",
+    display_name="XML",
+    extensions=[".xml", ".xsd", ".xsl", ".xslt", ".wsdl", ".pom"],
+    extra_ignore_dirs=["target", "bin", "out", ".gradle"],
+    description="XML files (.xml, .xsd, .xsl, .wsdl, .pom)",
+)
+
+YAML = LanguageConfig(
+    name="yaml",
+    display_name="YAML",
+    extensions=[".yml", ".yaml"],
+    extra_ignore_dirs=[],
+    description="YAML files (.yml, .yaml)",
+)
+
+SQL = LanguageConfig(
+    name="sql",
+    display_name="SQL",
+    extensions=[".sql"],
+    extra_ignore_dirs=["migrations"],
+    description="SQL files (.sql)",
+)
+
 LANGUAGES: dict[str, LanguageConfig] = {
-    "python": PYTHON, "py": PYTHON,
-    "javascript": JAVASCRIPT, "js": JAVASCRIPT,
-    "typescript": TYPESCRIPT, "ts": TYPESCRIPT,
-    "jupyter": JUPYTER, "ipynb": JUPYTER, "notebook": JUPYTER,
-    "js_ts": JS_TS, "jsts": JS_TS,
+    "python": PYTHON,
+    "py": PYTHON,
+    "javascript": JAVASCRIPT,
+    "js": JAVASCRIPT,
+    "typescript": TYPESCRIPT,
+    "ts": TYPESCRIPT,
+    "jupyter": JUPYTER,
+    "ipynb": JUPYTER,
+    "notebook": JUPYTER,
+    "js_ts": JS_TS,
+    "jsts": JS_TS,
+    "java": JAVA,
+    "xml": XML,
+    "yaml": YAML,
+    "yml": YAML,
+    "sql": SQL,
 }
 
 
