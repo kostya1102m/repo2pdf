@@ -31,43 +31,90 @@ def parse_args():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python main.py . -l python                 Python files only
-  python main.py . -l js                     JavaScript only
-  python main.py . -l python js jupyter      Multiple languages (separate PDFs)
-  python main.py . --all                     All supported languages
-  python main.py --list                      Show available languages
-  python main.py . -l python -v              Info-level logging
-  python main.py . -l python -vv             Debug-level logging
-        """,
+  repo2pdf . -l python                     Python files only
+  repo2pdf . -l js                         JavaScript only
+  repo2pdf . -l python js jupyter          Multiple languages (separate PDFs)
+  repo2pdf . --all                         All supported languages
+  repo2pdf --list                          Show available languages
+  repo2pdf . -l python -v                  Info-level logging
+  repo2pdf . -l python -vv                 Debug-level logging
+  
+Splitting large PDFs:
+  repo2pdf . -l python --max-pages 50      Split into 50-page parts
+  repo2pdf . -l python --max-pages 100     Split into 100-page parts
+  repo2pdf . -l python --split             Auto-split (default: 50 pages)
+""",
     )
     parser.add_argument(
-        "repo_path", nargs="?", default=".",
+        "repo_path",
+        nargs="?",
+        default=".",
         help="Path to repository (default: current directory)",
     )
     parser.add_argument(
-        "-l", "--languages", nargs="+", default=["python"],
+        "-l",
+        "--languages",
+        nargs="+",
+        default=["python"],
         help="Languages to generate (default: python)",
     )
     parser.add_argument(
-        "--all", action="store_true",
+        "--all",
+        action="store_true",
         help="Generate PDF for all supported languages",
     )
     parser.add_argument(
-        "-o", "--output-dir", default=".",
+        "-o",
+        "--output-dir",
+        default=".",
         help="Output directory for PDFs (default: current)",
     )
     parser.add_argument(
-        "--list", action="store_true", dest="list_langs",
+        "--list",
+        action="store_true",
+        dest="list_langs",
         help="Show available languages and exit",
     )
     parser.add_argument(
-        "-v", "--verbose", action="count", default=0,
+        "-v",
+        "--verbose",
+        action="count",
+        default=0,
         help="Increase logging verbosity (-v for INFO, -vv for DEBUG)",
     )
+
+    # Новые аргументы для разбиения
+    split_group = parser.add_argument_group("PDF splitting options")
+    split_group.add_argument(
+        "--max-pages",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Maximum pages per PDF file. Splits into parts if exceeded.",
+    )
+    split_group.add_argument(
+        "--split",
+        action="store_true",
+        help="Enable auto-splitting with default limit (50 pages)",
+    )
+    split_group.add_argument(
+        "--no-split",
+        action="store_true",
+        help="Disable splitting (generate single PDF regardless of size)",
+    )
+
     return parser.parse_args()
 
 
-def process_language(repo_path: Path, lang_config: LanguageConfig, output_dir: Path):
+def process_language(
+    repo_path: Path,
+    lang_config: LanguageConfig,
+    output_dir: Path,
+    max_pages: int = None,
+) -> list[str]:
+    """
+    Обрабатывает один язык и возвращает список созданных PDF файлов.
+    """
     repo_name = repo_path.name
 
     logger.info(
@@ -88,7 +135,7 @@ def process_language(repo_path: Path, lang_config: LanguageConfig, output_dir: P
             "No files with extensions %s found — skipping",
             lang_config.extensions,
         )
-        return
+        return []
 
     for f in files:
         logger.debug("  %s", f["path"])
@@ -96,13 +143,16 @@ def process_language(repo_path: Path, lang_config: LanguageConfig, output_dir: P
     output_dir.mkdir(parents=True, exist_ok=True)
     output_file = output_dir / f"{repo_name}_{lang_config.name}_docs.pdf"
 
-    generate_pdf(
+    generated_files = generate_pdf(
         tree_text=tree_text,
         files=files,
         output_path=str(output_file),
         repo_name=repo_name,
         lang_config=lang_config,
+        max_pages=max_pages,
     )
+
+    return generated_files
 
 
 def main():
@@ -125,8 +175,33 @@ def main():
 
     logger.info("Repository: %s", repo_path)
 
+    # Определяем лимит страниц
+    if args.no_split:
+        max_pages = None
+    elif args.max_pages is not None:
+        max_pages = args.max_pages
+        if max_pages < 10:
+            logger.warning("--max-pages should be at least 10, using 10")
+            max_pages = 10
+    elif args.split:
+        max_pages = 50  # Значение по умолчанию при --split
+    else:
+        max_pages = None  # Без разбиения по умолчанию
+
+    if max_pages:
+        logger.info("PDF splitting enabled: max %d pages per file", max_pages)
+
     if args.all:
-        unique_names = ["python", "javascript", "typescript", "jupyter"]
+        unique_names = [
+            "python",
+            "javascript",
+            "typescript",
+            "jupyter",
+            "java",
+            "xml",
+            "yaml",
+            "sql",
+        ]
         lang_configs = [get_language(name) for name in unique_names]
     else:
         lang_configs = []
@@ -141,8 +216,18 @@ def main():
                 logger.critical("%s", e)
                 sys.exit(1)
 
+    all_generated = []
+
     for lang_config in lang_configs:
-        process_language(repo_path, lang_config, output_dir)
+        generated = process_language(repo_path, lang_config, output_dir, max_pages)
+        all_generated.extend(generated)
+
+    # Итоговая статистика
+    if all_generated:
+        logger.info("=" * 50)
+        logger.info("Generated %d PDF file(s):", len(all_generated))
+        for f in all_generated:
+            logger.info("  • %s", f)
 
     logger.info("Done")
 
