@@ -63,6 +63,12 @@ THEMES = {
         "code_bg": (240, 248, 255),
         "title_accent": (0, 102, 153),
     },
+    "html": {
+        "accent": (227, 76, 38),
+        "header_bg": (65, 35, 20),
+        "code_bg": (255, 245, 238),
+        "title_accent": (227, 76, 38),
+    },
 }
 
 DEFAULT_THEME = {

@@ -139,6 +139,14 @@ SQL = LanguageConfig(
     description="SQL files (.sql)",
 )
 
+HTML = LanguageConfig(
+    name="html",
+    display_name="HTML",
+    extensions=[".html", ".htm"],
+    extra_ignore_dirs=[],
+    description="HTML files (.html, .htm)",
+)
+
 LANGUAGES: dict[str, LanguageConfig] = {
     "python": PYTHON,
     "py": PYTHON,
@@ -156,6 +164,8 @@ LANGUAGES: dict[str, LanguageConfig] = {
     "yaml": YAML,
     "yml": YAML,
     "sql": SQL,
+    "html": HTML,
+    "htm": HTML,
 }
 
 
