@@ -92,14 +92,13 @@ Splitting large PDFs:
         metavar="N",
         help="Maximum pages per PDF file. Splits into parts if exceeded.",
     )
-    split_group.add_argument(
-        "--split",
-        action="store_true",
+    split_exclusive = split_group.add_mutually_exclusive_group()
+    split_exclusive.add_argument(
+        "--split", action="store_true",
         help="Enable auto-splitting with default limit (50 pages)",
     )
-    split_group.add_argument(
-        "--no-split",
-        action="store_true",
+    split_exclusive.add_argument(
+        "--no-split", action="store_true",
         help="Disable splitting (generate single PDF regardless of size)",
     )
 
@@ -176,6 +175,11 @@ def main():
     logger.info("Repository: %s", repo_path)
 
     # Определяем лимит страниц
+    if args.split and args.max_pages is not None:
+        logger.warning(
+            "Both --split and --max-pages specified; using --max-pages %d",
+            args.max_pages,
+        )
     if args.no_split:
         max_pages = None
     elif args.max_pages is not None:
@@ -201,6 +205,7 @@ def main():
             "xml",
             "yaml",
             "sql",
+            "html",
         ]
         lang_configs = [get_language(name) for name in unique_names]
     else:
