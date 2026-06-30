@@ -1,8 +1,11 @@
 import logging
+import textwrap
+from dataclasses import dataclass
 from pathlib import Path
+
 from fpdf import FPDF
 
-from .fonts import get_font_path, download_fonts
+from .fonts import download_fonts, get_font_path
 from .languages import LanguageConfig
 
 logger = logging.getLogger(__name__)
@@ -79,14 +82,22 @@ DEFAULT_THEME = {
 }
 
 
-class RepoPDF(FPDF):
+@dataclass(frozen=True)
+class PDFRenderOptions:
+    wrap_long_lines: bool = True
+    max_chars_per_line: int = 100
+    code_font_size: float = 7.5
+    line_height: float = 4.2
 
+
+class RepoPDF(FPDF):
     def __init__(
         self,
         repo_name: str,
         lang_config: LanguageConfig,
-        part_number: int = None,
-        total_parts: int = None,
+        part_number: int | None = None,
+        total_parts: int | None = None,
+        render_options: PDFRenderOptions | None = None,
     ):
         super().__init__()
         self.repo_name = repo_name
@@ -94,9 +105,10 @@ class RepoPDF(FPDF):
         self.theme = THEMES.get(lang_config.name, DEFAULT_THEME)
         self.part_number = part_number
         self.total_parts = total_parts
+        self.render_options = render_options or PDFRenderOptions()
         self._register_fonts()
 
-    def _register_fonts(self):
+    def _register_fonts(self) -> None:
         download_fonts()
         self.add_font("DejaVuMono", "", get_font_path("DejaVuSansMono.ttf"))
         self.add_font("DejaVuMono", "B", get_font_path("DejaVuSansMono-Bold.ttf"))
@@ -104,7 +116,7 @@ class RepoPDF(FPDF):
         self.add_font("DejaVuSans", "", get_font_path("DejaVuSans.ttf"))
         self.add_font("DejaVuSans", "B", get_font_path("DejaVuSans-Bold.ttf"))
 
-    def header(self):
+    def header(self) -> None:
         if self.page_no() == 1:
             return
 
@@ -125,13 +137,13 @@ class RepoPDF(FPDF):
         self.set_line_width(0.2)
         self.ln(6)
 
-    def footer(self):
+    def footer(self) -> None:
         self.set_y(-15)
         self.set_font("DejaVuSans", "", 8)
         self.set_text_color(150, 150, 150)
         self.cell(0, 10, f"-- {self.page_no()} / {{nb}} --", align="C")
 
-    def add_title_page(self, file_count: int, files_range: tuple[int, int] = None):
+    def add_title_page(self, file_count: int, files_range: tuple[int, int] | None = None) -> None:
         self.add_page()
         self.ln(50)
 
@@ -152,7 +164,6 @@ class RepoPDF(FPDF):
             new_y="NEXT",
         )
 
-        # Информация о части
         if self.part_number is not None:
             self.ln(3)
             self.set_font("DejaVuSans", "B", 14)
@@ -166,28 +177,23 @@ class RepoPDF(FPDF):
                 new_y="NEXT",
             )
 
-            if files_range:
-                self.set_font("DejaVuSans", "", 11)
-                self.cell(
-                    0,
-                    8,
-                    f"Files {files_range[0]} — {files_range[1]} of {file_count}",
-                    align="C",
-                    new_x="LMARGIN",
-                    new_y="NEXT",
-                )
+        if files_range:
+            self.set_font("DejaVuSans", "", 11)
+            self.cell(
+                0,
+                8,
+                f"Files {files_range[0]} — {files_range[1]} of {file_count}",
+                align="C",
+                new_x="LMARGIN",
+                new_y="NEXT",
+            )
 
         self.ln(5)
-
         self.set_font("DejaVuSans", "", 12)
         self.set_text_color(120, 120, 120)
+
         ext_str = ", ".join(self.lang_config.extensions)
-
-        if self.part_number is None:
-            files_text = f"Files: {file_count}"
-        else:
-            files_text = f"Total Files: {file_count}"
-
+        files_text = f"Files: {file_count}" if self.part_number is None else f"Total Files: {file_count}"
         self.cell(
             0,
             8,
@@ -204,7 +210,7 @@ class RepoPDF(FPDF):
         self.line(60, self.get_y(), 150, self.get_y())
         self.set_line_width(0.2)
 
-    def add_section_title(self, title: str):
+    def add_section_title(self, title: str) -> None:
         self.add_page()
         self.set_font("DejaVuSans", "B", 22)
         self.set_text_color(30, 30, 30)
@@ -218,119 +224,115 @@ class RepoPDF(FPDF):
         self.set_line_width(0.2)
         self.ln(8)
 
-    def add_tree(self, tree_text: str):
+    def add_tree(self, tree_text: str) -> None:
         self.set_font("DejaVuMono", "", 9)
         self.set_text_color(30, 30, 30)
 
-        for line in tree_text.split("\n"):
+        for line in tree_text.splitlines():
             if self.get_y() > 272:
                 self.add_page()
                 self.set_font("DejaVuMono", "", 9)
                 self.set_text_color(30, 30, 30)
             self.cell(0, 5, line, new_x="LMARGIN", new_y="NEXT")
 
-    def _file_header_bar(self, text: str, bg_color: tuple):
+    def _file_header_bar(self, text: str, bg_color: tuple[int, int, int]) -> None:
         r, g, b = bg_color
         self.set_fill_color(r, g, b)
         self.set_text_color(255, 255, 255)
         self.set_font("DejaVuMono", "B", 10)
         self.cell(0, 9, f" {text}", fill=True, new_x="LMARGIN", new_y="NEXT")
 
-    def add_file_content(self, file_path: str, content: str):
+    def add_file_content(self, file_path: str, content: str) -> None:
         if self.get_y() > 235:
             self.add_page()
 
         self.ln(4)
         self._file_header_bar(file_path, self.theme["header_bg"])
 
-        code_font_size = 7.5
-        line_height = 4.2
-        max_chars = 100
-
-        self.set_font("DejaVuMono", "", code_font_size)
+        options = self.render_options
+        self.set_font("DejaVuMono", "", options.code_font_size)
         self.set_text_color(30, 30, 30)
+
         cr, cg, cb = self.theme["code_bg"]
         self.set_fill_color(cr, cg, cb)
 
-        lines = content.split("\n")
+        lines = content.splitlines() or [""]
         line_num_width = max(len(str(len(lines))), 3)
 
-        for i, line in enumerate(lines, 1):
-            if self.get_y() > 277:
-                self.add_page()
-                cont_bg = tuple(min(c + 30, 255) for c in self.theme["header_bg"])
-                self._file_header_bar(f"{file_path} (continued)", cont_bg)
-                self.set_font("DejaVuMono", "", code_font_size)
-                self.set_text_color(30, 30, 30)
-                self.set_fill_color(cr, cg, cb)
+        for line_no, line in enumerate(lines, 1):
+            for visual_line_no, display in enumerate(self._format_code_line(line)):
+                if self.get_y() > 277:
+                    self.add_page()
+                    cont_bg = tuple(min(c + 30, 255) for c in self.theme["header_bg"])
+                    self._file_header_bar(f"{file_path} (continued)", cont_bg)
+                    self.set_font("DejaVuMono", "", options.code_font_size)
+                    self.set_text_color(30, 30, 30)
+                    self.set_fill_color(cr, cg, cb)
 
-            display = line.replace("\t", "    ")
-            if len(display) > max_chars:
-                display = display[:max_chars] + " ..."
-
-            line_num = str(i).rjust(line_num_width)
-            text = f" {line_num} | {display}"
-            self.cell(0, line_height, text, fill=True, new_x="LMARGIN", new_y="NEXT")
+                prefix = str(line_no).rjust(line_num_width) if visual_line_no == 0 else " " * line_num_width
+                text = f" {prefix} | {display}"
+                self.cell(0, options.line_height, text, fill=True, new_x="LMARGIN", new_y="NEXT")
 
         self.ln(3)
 
+    def _format_code_line(self, line: str) -> list[str]:
+        options = self.render_options
+        display = line.replace("\t", "    ")
+
+        if not options.wrap_long_lines:
+            if len(display) > options.max_chars_per_line:
+                return [display[: options.max_chars_per_line] + " ..."]
+            return [display]
+
+        return textwrap.wrap(
+            display,
+            width=options.max_chars_per_line,
+            replace_whitespace=False,
+            drop_whitespace=False,
+        ) or [""]
+
 
 class PDFSplitter:
-    """Класс для оценки размера и разбиения контента на части."""
+    """Approximate content splitter for large generated PDFs."""
 
-    # Примерные константы для оценки страниц
-    LINES_PER_PAGE = 55  # строк кода на страницу
+    LINES_PER_PAGE = 55
     TREE_LINES_PER_PAGE = 50
-    TITLE_PAGES = 2  # титульная + структура проекта (заголовок)
+    TITLE_PAGES = 2
 
     def __init__(self, max_pages: int = 50):
         self.max_pages = max_pages
 
     def estimate_file_pages(self, content: str) -> int:
-        """Оценивает количество страниц для файла."""
         lines = content.count("\n") + 1
-        # +1 страница на заголовок файла если он большой
         pages = (lines + self.LINES_PER_PAGE - 1) // self.LINES_PER_PAGE
         return max(1, pages)
 
-    def estimate_tree_pages(self, tree_text: str) -> int:
-        """Оценивает количество страниц для дерева проекта."""
+    def estimate_tree_pages(self, tree_text: str | None) -> int:
+        if not tree_text:
+            return 0
         lines = tree_text.count("\n") + 1
-        return max(
-            1, (lines + self.TREE_LINES_PER_PAGE - 1) // self.TREE_LINES_PER_PAGE
-        )
+        return max(1, (lines + self.TREE_LINES_PER_PAGE - 1) // self.TREE_LINES_PER_PAGE)
 
-    def split_files(self, files: list[dict], tree_text: str) -> list[list[dict]]:
-        """
-        Разбивает список файлов на части так, чтобы каждая часть
-        умещалась в max_pages страниц.
-
-        Returns:
-            Список частей, где каждая часть — список файлов.
-        """
+    def split_files(self, files: list[dict[str, str]], tree_text: str) -> list[list[dict[str, str]]]:
         if not files:
             return [files]
 
         tree_pages = self.estimate_tree_pages(tree_text)
-
-        parts = []
-        current_part = []
-        current_pages = self.TITLE_PAGES + tree_pages + 1  # +1 для заголовка секции
+        parts: list[list[dict[str, str]]] = []
+        current_part: list[dict[str, str]] = []
+        current_pages = self.TITLE_PAGES + tree_pages + 1
 
         for file_info in files:
             file_pages = self.estimate_file_pages(file_info["content"])
 
-            # Если добавление файла превысит лимит и часть не пуста
             if current_pages + file_pages > self.max_pages and current_part:
                 parts.append(current_part)
                 current_part = []
-                # Новая часть: титульная + заголовок секции (без дерева — только в первой части)
                 current_pages = self.TITLE_PAGES + 1
 
             current_part.append(file_info)
             current_pages += file_pages
 
-        # Добавляем последнюю часть
         if current_part:
             parts.append(current_part)
 
@@ -339,65 +341,36 @@ class PDFSplitter:
 
 def generate_pdf(
     tree_text: str,
-    files: list[dict],
+    files: list[dict[str, str]],
     output_path: str,
     repo_name: str,
     lang_config: LanguageConfig,
-    max_pages: int = None,
+    max_pages: int | None = None,
+    render_options: PDFRenderOptions | None = None,
 ) -> list[str]:
-    """
-    Генерирует PDF документацию.
-
-    Args:
-        tree_text: Текстовое представление структуры проекта
-        files: Список файлов с содержимым
-        output_path: Путь для сохранения PDF
-        repo_name: Название репозитория
-        lang_config: Конфигурация языка
-        max_pages: Максимальное число страниц на файл.
-                   None = без ограничений (один файл)
-
-    Returns:
-        Список путей созданных PDF файлов
-    """
-
-    # Если лимит не задан или файлов мало — генерируем один PDF
     if max_pages is None:
-        return [
-            _generate_single_pdf(tree_text, files, output_path, repo_name, lang_config)
-        ]
+        return [_generate_single_pdf(tree_text, files, output_path, repo_name, lang_config, render_options)]
 
-    # Разбиваем на части
     splitter = PDFSplitter(max_pages)
     parts = splitter.split_files(files, tree_text)
 
-    # Если всё умещается в одну часть
     if len(parts) <= 1:
-        return [
-            _generate_single_pdf(tree_text, files, output_path, repo_name, lang_config)
-        ]
+        return [_generate_single_pdf(tree_text, files, output_path, repo_name, lang_config, render_options)]
 
-    # Генерируем несколько PDF
     output_base = Path(output_path)
-    stem = output_base.stem
-    suffix = output_base.suffix
-    parent = output_base.parent
-
-    generated_files = []
+    generated_files: list[str] = []
     total_files = len(files)
     file_counter = 0
 
     for part_num, part_files in enumerate(parts, 1):
-        part_output = parent / f"{stem}_part{part_num}_of_{len(parts)}{suffix}"
+        part_output = output_base.parent / f"{output_base.stem}_part{part_num}_of_{len(parts)}{output_base.suffix}"
 
         files_start = file_counter + 1
         files_end = file_counter + len(part_files)
         file_counter = files_end
 
         _generate_part_pdf(
-            tree_text=(
-                tree_text if part_num == 1 else None
-            ),  # Дерево только в первой части
+            tree_text=tree_text if part_num == 1 else None,
             files=part_files,
             output_path=str(part_output),
             repo_name=repo_name,
@@ -406,6 +379,7 @@ def generate_pdf(
             total_parts=len(parts),
             total_files=total_files,
             files_range=(files_start, files_end),
+            render_options=render_options,
         )
 
         generated_files.append(str(part_output))
@@ -413,20 +387,30 @@ def generate_pdf(
     return generated_files
 
 
+def _new_pdf(
+    repo_name: str,
+    lang_config: LanguageConfig,
+    render_options: PDFRenderOptions | None = None,
+    part_number: int | None = None,
+    total_parts: int | None = None,
+) -> RepoPDF:
+    pdf = RepoPDF(repo_name, lang_config, part_number, total_parts, render_options)
+    pdf.alias_nb_pages()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    return pdf
+
+
 def _generate_single_pdf(
     tree_text: str,
-    files: list[dict],
+    files: list[dict[str, str]],
     output_path: str,
     repo_name: str,
     lang_config: LanguageConfig,
+    render_options: PDFRenderOptions | None = None,
 ) -> str:
-    """Генерирует единый PDF без разбиения."""
     logger.info("Generating PDF: %s", output_path)
 
-    pdf = RepoPDF(repo_name, lang_config)
-    pdf.alias_nb_pages()
-    pdf.set_auto_page_break(auto=True, margin=15)
-
+    pdf = _new_pdf(repo_name, lang_config, render_options)
     pdf.add_title_page(len(files))
 
     pdf.add_section_title("Project Structure")
@@ -445,7 +429,7 @@ def _generate_single_pdf(
 
 def _generate_part_pdf(
     tree_text: str | None,
-    files: list[dict],
+    files: list[dict[str, str]],
     output_path: str,
     repo_name: str,
     lang_config: LanguageConfig,
@@ -453,17 +437,13 @@ def _generate_part_pdf(
     total_parts: int,
     total_files: int,
     files_range: tuple[int, int],
+    render_options: PDFRenderOptions | None = None,
 ) -> str:
-    """Генерирует одну часть многотомного PDF."""
     logger.info("Generating PDF part %d/%d: %s", part_number, total_parts, output_path)
 
-    pdf = RepoPDF(repo_name, lang_config, part_number, total_parts)
-    pdf.alias_nb_pages()
-    pdf.set_auto_page_break(auto=True, margin=15)
-
+    pdf = _new_pdf(repo_name, lang_config, render_options, part_number, total_parts)
     pdf.add_title_page(total_files, files_range)
 
-    # Дерево проекта только в первой части
     if tree_text is not None:
         pdf.add_section_title("Project Structure")
         pdf.add_tree(tree_text)
@@ -474,8 +454,8 @@ def _generate_part_pdf(
             section_title += f" — Part {part_number}"
         pdf.add_section_title(section_title)
 
-        for file_info in files:
-            pdf.add_file_content(file_info["path"], file_info["content"])
+    for file_info in files:
+        pdf.add_file_content(file_info["path"], file_info["content"])
 
     pdf.output(output_path)
     logger.info("PDF part saved: %s (%d files)", output_path, len(files))

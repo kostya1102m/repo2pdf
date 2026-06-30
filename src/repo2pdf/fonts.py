@@ -1,7 +1,7 @@
-import os
-import zipfile
 import io
 import logging
+import os
+import zipfile
 from pathlib import Path
 
 import requests
@@ -26,13 +26,10 @@ REQUIRED_FONTS = {
 
 
 def fonts_exist() -> bool:
-    for font_name in REQUIRED_FONTS:
-        if not (FONTS_DIR / font_name).exists():
-            return False
-    return True
+    return all((FONTS_DIR / font_name).exists() for font_name in REQUIRED_FONTS)
 
 
-def download_fonts():
+def download_fonts() -> None:
     FONTS_DIR.mkdir(parents=True, exist_ok=True)
 
     if fonts_exist():
@@ -43,22 +40,23 @@ def download_fonts():
     try:
         response = requests.get(DEJAVU_URL, timeout=30)
         response.raise_for_status()
-    except requests.RequestException as e:
+    except requests.RequestException as exc:
         logger.critical(
             "Failed to download fonts: %s. "
-            "Please download DejaVu fonts manually and place .ttf files in ./fonts/",
-            e,
+            "Please download DejaVu fonts manually and place .ttf files in %s",
+            exc,
+            FONTS_DIR,
         )
-        raise SystemExit(1)
+        raise SystemExit(1) from exc
 
     with zipfile.ZipFile(io.BytesIO(response.content)) as zf:
         for zip_entry in zf.namelist():
             filename = os.path.basename(zip_entry)
-            if filename in REQUIRED_FONTS:
-                data = zf.read(zip_entry)
-                target = FONTS_DIR / filename
-                target.write_bytes(data)
-                logger.debug("Extracted font: %s", filename)
+            if filename not in REQUIRED_FONTS:
+                continue
+            target = FONTS_DIR / filename
+            target.write_bytes(zf.read(zip_entry))
+            logger.debug("Extracted font: %s", filename)
 
     if not fonts_exist():
         logger.critical("Some fonts are missing after download")
