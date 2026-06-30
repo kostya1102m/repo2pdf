@@ -90,6 +90,9 @@ class PDFRenderOptions:
     line_height: float = 4.2
 
 
+TOTAL_PAGES_ALIAS = "{__repo2pdf_total_pages__}"
+
+
 class RepoPDF(FPDF):
     def __init__(
         self,
@@ -141,7 +144,7 @@ class RepoPDF(FPDF):
         self.set_y(-15)
         self.set_font("DejaVuSans", "", 8)
         self.set_text_color(150, 150, 150)
-        self.cell(0, 10, f"-- {self.page_no()} / {{nb}} --", align="C")
+        self.cell(0, 10, f"-- {self.page_no()} / {TOTAL_PAGES_ALIAS} --", align="C")
 
     def add_title_page(self, file_count: int, files_range: tuple[int, int] | None = None) -> None:
         self.add_page()
@@ -395,7 +398,7 @@ def _new_pdf(
     total_parts: int | None = None,
 ) -> RepoPDF:
     pdf = RepoPDF(repo_name, lang_config, part_number, total_parts, render_options)
-    pdf.alias_nb_pages()
+    pdf.alias_nb_pages(TOTAL_PAGES_ALIAS)
     pdf.set_auto_page_break(auto=True, margin=15)
     return pdf
 

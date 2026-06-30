@@ -6,6 +6,7 @@ from pathlib import Path
 from .generator import PDFRenderOptions, generate_pdf
 from .languages import LanguageConfig, get_language, iter_unique_languages, list_languages
 from .tree import CollectOptions, collect_files, get_tree_string
+from .markdown import MarkdownRenderOptions, generate_markdown
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,7 @@ def _configure_logging(verbosity: int) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Generate PDF documentation from repository source files.",
+        description="Generate documentation from repository source files.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -38,6 +39,10 @@ Examples:
   repo2pdf . -l python --max-pages 50
   repo2pdf . -l python --exclude "tests/*" --max-file-size 1
   repo2pdf --list
+
+  repo2pdf . -l python --format md
+  repo2pdf . -l python --format both
+  repo2pdf . -l python --format md --md-line-numbers
 """,
     )
     parser.add_argument(
@@ -56,13 +61,31 @@ Examples:
     parser.add_argument(
         "--all",
         action="store_true",
-        help="Generate PDF for all supported languages",
+        help="Generate documentation for all supported languages",
     )
     parser.add_argument(
         "-o",
         "--output-dir",
         default=".",
-        help="Output directory for PDFs (default: current)",
+        help="Output directory for generated documentation files (default: current)",
+    )
+    parser.add_argument(
+        "--format",
+        choices=("pdf", "md", "both"),
+        default="pdf",
+        help="Output format: pdf, md, or both (default: pdf)",
+    )
+
+    parser.add_argument(
+        "--md-line-numbers",
+        action="store_true",
+        help="Include line numbers in Markdown code blocks.",
+    )
+
+    parser.add_argument(
+        "--no-md-tree",
+        action="store_true",
+        help="Do not include project tree in Markdown output.",
     )
     parser.add_argument(
         "--list",
@@ -182,6 +205,8 @@ def process_language(
     output_dir: Path,
     collect_options: CollectOptions,
     render_options: PDFRenderOptions,
+    markdown_options: MarkdownRenderOptions,
+    output_format: str,
     max_pages: int | None = None,
 ) -> list[str]:
     repo_name = repo_path.name
@@ -204,20 +229,39 @@ def process_language(
         return []
 
     for file_info in files:
-        logger.debug("  %s", file_info["path"])
+        logger.debug(" %s", file_info["path"])
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_file = output_dir / f"{repo_name}_{lang_config.name}_docs.pdf"
 
-    return generate_pdf(
-        tree_text=tree_text,
-        files=files,
-        output_path=str(output_file),
-        repo_name=repo_name,
-        lang_config=lang_config,
-        max_pages=max_pages,
-        render_options=render_options,
-    )
+    generated: list[str] = []
+    output_base = output_dir / f"{repo_name}_{lang_config.name}_docs"
+
+    if output_format in ("pdf", "both"):
+        generated.extend(
+            generate_pdf(
+                tree_text=tree_text,
+                files=files,
+                output_path=str(output_base.with_suffix(".pdf")),
+                repo_name=repo_name,
+                lang_config=lang_config,
+                max_pages=max_pages,
+                render_options=render_options,
+            )
+        )
+
+    if output_format in ("md", "both"):
+        generated.append(
+            generate_markdown(
+                tree_text=tree_text,
+                files=files,
+                output_path=str(output_base.with_suffix(".md")),
+                repo_name=repo_name,
+                lang_config=lang_config,
+                render_options=markdown_options,
+            )
+        )
+
+    return generated
 
 
 def main() -> None:
@@ -256,6 +300,10 @@ def main() -> None:
         wrap_long_lines=not args.truncate_lines,
         max_chars_per_line=args.max_line_chars,
     )
+    markdown_options = MarkdownRenderOptions(
+        include_line_numbers=args.md_line_numbers,
+        include_tree=not args.no_md_tree,
+    )
 
     lang_configs = _resolve_languages(args)
     all_generated: list[str] = []
@@ -269,13 +317,15 @@ def main() -> None:
             output_dir=output_dir,
             collect_options=collect_options,
             render_options=render_options,
+            markdown_options=markdown_options,
+            output_format=args.format,
             max_pages=max_pages,
         )
         all_generated.extend(generated)
 
     if all_generated:
         logger.info("=" * 50)
-        logger.info("Generated %d PDF file(s):", len(all_generated))
+        logger.info("Generated %d file(s):", len(all_generated))
         for file_path in all_generated:
             logger.info(" • %s", file_path)
 
