@@ -22,7 +22,9 @@ def _should_ignore(name: str, ignored_dirs: set[str]) -> bool:
     return False
 
 
-def build_tree(root_path: str, lang_config: LanguageConfig, prefix: str = "") -> list[str]:
+def build_tree(
+    root_path: str, lang_config: LanguageConfig, prefix: str = ""
+) -> list[str]:
     root = Path(root_path)
     ignored = _get_ignored_dirs(lang_config)
     lines = []
@@ -31,21 +33,17 @@ def build_tree(root_path: str, lang_config: LanguageConfig, prefix: str = "") ->
         lines.append(f"{root.name}/")
 
     try:
-        entries = sorted(
-            root.iterdir(),
-            key=lambda e: (not e.is_dir(), e.name.lower())
-        )
+        entries = sorted(root.iterdir(), key=lambda e: (not e.is_dir(), e.name.lower()))
     except PermissionError:
         logger.warning("Permission denied: %s", root)
         return lines
 
     entries = [
-        e for e in entries
-        if not (e.is_dir() and _should_ignore(e.name, ignored))
+        e for e in entries if not (e.is_dir() and _should_ignore(e.name, ignored))
     ]
 
     for i, entry in enumerate(entries):
-        is_last = (i == len(entries) - 1)
+        is_last = i == len(entries) - 1
         connector = "└── " if is_last else "├── "
         extension = "    " if is_last else "│   "
 
